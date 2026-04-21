@@ -5,7 +5,7 @@ Python client for the [Free Mobile SMS API](https://mobile.free.fr/). Send SMS n
 ## Installation
 
 ```bash
-pip install freemobile-sms
+pip install freemobile-sms-client
 ```
 
 ## Quick Start

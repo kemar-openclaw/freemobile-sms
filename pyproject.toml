@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "freemobile-sms"
+name = "freemobile-sms-client"
 version = "0.1.0"
 description = "Python client for the Free Mobile SMS API — send SMS notifications programmatically."
 readme = "README.md"
