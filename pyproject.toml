@@ -81,6 +81,9 @@ replace = 'version = "{new_version}"'
 [tool.hatch.version]
 paths = ["freemobile_sms/__init__.py"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["freemobile_sms"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
