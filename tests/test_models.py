@@ -8,12 +8,12 @@ from freemobile_sms.models import FreeMobileStatus, SMSResult
 class TestFreeMobileStatus:
     """Tests for the FreeMobileStatus enum."""
 
-    def test_status_values(self) -> None:
-        """Status codes should match the Free Mobile API spec."""
+    def test_status_values_match_docs(self) -> None:
+        """Status codes should match the official Free Mobile API documentation."""
         assert FreeMobileStatus.OK == 200
         assert FreeMobileStatus.MISSING_PARAMETER == 400
-        assert FreeMobileStatus.INVALID_CREDENTIALS == 402
-        assert FreeMobileStatus.ACCOUNT_BLOCKED == 403
+        assert FreeMobileStatus.RATE_LIMITED == 402
+        assert FreeMobileStatus.ACCESS_DENIED == 403
         assert FreeMobileStatus.SERVER_ERROR == 500
 
     def test_all_statuses_present(self) -> None:

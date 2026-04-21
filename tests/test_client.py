@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+from urllib.parse import unquote_plus
+
 import httpx
 import pytest
 
 from freemobile_sms.client import (
-    AccountBlockedError,
+    AccessDeniedError,
     AsyncFreeMobileClient,
-    AuthenticationError,
     FreeMobileClient,
     FreeMobileClientError,
+    RateLimitError,
     ServerError,
 )
 from freemobile_sms.settings import FreeMobileSettings
@@ -72,6 +74,29 @@ class TestFreeMobileClientSend:
         assert result.ok is True
         assert result.status_code == 200
 
+    def test_send_post_method(self, test_settings: FreeMobileSettings) -> None:
+        """POST method should send data in request body."""
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["method"] = request.method
+            # Parse request body (URL-decode values as httpx encodes them)
+            body = request.content.decode("utf-8")
+            for part in body.split("&"):
+                key, value = part.split("=", 1)
+                captured[key] = unquote_plus(value)
+            return httpx.Response(200)
+
+        transport = httpx.MockTransport(handler)
+        http_client = httpx.Client(transport=transport)
+        with FreeMobileClient(settings=test_settings, http_client=http_client) as client:
+            client.send("Hello World", method="POST")
+
+        assert captured["method"] == "POST"
+        assert captured["user"] == "12345678"
+        assert captured["pass"] == "testApiKey"
+        assert captured["msg"] == "Hello World"
+
     def test_send_missing_parameter(self, test_settings: FreeMobileSettings) -> None:
         """HTTP 400 should return SMSResult with ok=False."""
         transport = _mock_transport(400)
@@ -81,23 +106,23 @@ class TestFreeMobileClientSend:
         assert result.ok is False
         assert result.status_code == 400
 
-    def test_send_invalid_credentials(self, test_settings: FreeMobileSettings) -> None:
-        """HTTP 402 should raise AuthenticationError."""
+    def test_send_rate_limited(self, test_settings: FreeMobileSettings) -> None:
+        """HTTP 402 should raise RateLimitError."""
         transport = _mock_transport(402)
         http_client = httpx.Client(transport=transport)
         with (
             FreeMobileClient(settings=test_settings, http_client=http_client) as client,
-            pytest.raises(AuthenticationError, match="Invalid credentials"),
+            pytest.raises(RateLimitError, match="Too many SMS"),
         ):
             client.send("test")
 
-    def test_send_account_blocked(self, test_settings: FreeMobileSettings) -> None:
-        """HTTP 403 should raise AccountBlockedError."""
+    def test_send_access_denied(self, test_settings: FreeMobileSettings) -> None:
+        """HTTP 403 should raise AccessDeniedError."""
         transport = _mock_transport(403)
         http_client = httpx.Client(transport=transport)
         with (
             FreeMobileClient(settings=test_settings, http_client=http_client) as client,
-            pytest.raises(AccountBlockedError, match="Account blocked"),
+            pytest.raises(AccessDeniedError, match="Service not activated"),
         ):
             client.send("test")
 
@@ -215,21 +240,44 @@ class TestAsyncFreeMobileClientSend:
         assert result.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_send_invalid_credentials(self, test_settings: FreeMobileSettings) -> None:
-        """HTTP 402 should raise AuthenticationError in async client."""
+    async def test_send_post_method(self, test_settings: FreeMobileSettings) -> None:
+        """POST method should send data in request body."""
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["method"] = request.method
+            body = request.content.decode("utf-8")
+            for part in body.split("&"):
+                key, value = part.split("=", 1)
+                captured[key] = unquote_plus(value)
+            return httpx.Response(200)
+
+        transport = httpx.MockTransport(handler)
+        http_client = httpx.AsyncClient(transport=transport)
+        async with AsyncFreeMobileClient(settings=test_settings, http_client=http_client) as client:
+            await client.send("Hello World", method="POST")
+
+        assert captured["method"] == "POST"
+        assert captured["user"] == "12345678"
+        assert captured["pass"] == "testApiKey"
+        assert captured["msg"] == "Hello World"
+
+    @pytest.mark.asyncio
+    async def test_send_rate_limited(self, test_settings: FreeMobileSettings) -> None:
+        """HTTP 402 should raise RateLimitError in async client."""
         transport = _mock_transport(402)
         http_client = httpx.AsyncClient(transport=transport)
         async with AsyncFreeMobileClient(settings=test_settings, http_client=http_client) as client:
-            with pytest.raises(AuthenticationError, match="Invalid credentials"):
+            with pytest.raises(RateLimitError, match="Too many SMS"):
                 await client.send("test")
 
     @pytest.mark.asyncio
-    async def test_send_account_blocked(self, test_settings: FreeMobileSettings) -> None:
-        """HTTP 403 should raise AccountBlockedError in async client."""
+    async def test_send_access_denied(self, test_settings: FreeMobileSettings) -> None:
+        """HTTP 403 should raise AccessDeniedError in async client."""
         transport = _mock_transport(403)
         http_client = httpx.AsyncClient(transport=transport)
         async with AsyncFreeMobileClient(settings=test_settings, http_client=http_client) as client:
-            with pytest.raises(AccountBlockedError, match="Account blocked"):
+            with pytest.raises(AccessDeniedError, match="Service not activated"):
                 await client.send("test")
 
     @pytest.mark.asyncio

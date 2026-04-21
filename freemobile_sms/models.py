@@ -8,12 +8,15 @@ from pydantic import BaseModel, Field
 
 
 class FreeMobileStatus(IntEnum):
-    """Response status codes from the Free Mobile SMS API."""
+    """Response status codes from the Free Mobile SMS API.
+
+    See: https://mobile.free.fr/account/mes-options
+    """
 
     OK = 200
     MISSING_PARAMETER = 400
-    INVALID_CREDENTIALS = 402
-    ACCOUNT_BLOCKED = 403
+    RATE_LIMITED = 402
+    ACCESS_DENIED = 403
     SERVER_ERROR = 500
 
 

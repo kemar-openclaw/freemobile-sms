@@ -39,6 +39,15 @@ with FreeMobileClient(settings=settings) as client:
     result = client.send("Hello from Python!")
 ```
 
+### POST Method (No URL Encoding)
+
+The API supports POST requests where the message doesn't need to be URL-encoded:
+
+```python
+with FreeMobileClient() as client:
+    result = client.send("Hello with émojis and special chars!", method="POST")
+```
+
 ### Async Python
 
 ```python
@@ -57,6 +66,9 @@ freemobile-sms send "Hello from the command line!"
 
 # Using options
 freemobile-sms send "Hello!" --user 12345678 --password yourApiKey
+
+# Using POST method (no URL encoding needed)
+freemobile-sms send "Hello!" --method POST --user 12345678 --password yourApiKey
 ```
 
 ## API Reference
@@ -67,7 +79,7 @@ Synchronous client. Use as a context manager for automatic cleanup.
 
 | Method | Description |
 |--------|-------------|
-| `send(message)` | Send an SMS. Returns `SMSResult`. |
+| `send(message, method="GET")` | Send an SMS. Returns `SMSResult`. Use `method="POST"` to avoid URL-encoding. |
 
 ### `AsyncFreeMobileClient`
 
@@ -97,8 +109,8 @@ Pydantic Settings model. Reads from environment variables with `FREE_MOBILE_` pr
 | Exception | Status | Description |
 |-----------|--------|-------------|
 | `FreeMobileClientError` | — | Base exception |
-| `AuthenticationError` | 402 | Invalid credentials |
-| `AccountBlockedError` | 403 | Account blocked from notifications |
+| `RateLimitError` | 402 | Too many SMS sent in too short a time |
+| `AccessDeniedError` | 403 | Service not activated or incorrect login/key |
 | `ServerError` | 500 | Free Mobile server error |
 
 ## Development

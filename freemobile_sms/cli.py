@@ -42,6 +42,12 @@ def send(
         envvar="FREE_MOBILE_API_URL",
         help="Free Mobile SMS API URL.",
     ),
+    method: str = typer.Option(
+        "GET",
+        "--method",
+        "-m",
+        help="HTTP method: GET or POST. POST avoids URL-encoding the message.",
+    ),
 ) -> None:
     """Send an SMS notification via the Free Mobile API.
 
@@ -59,6 +65,10 @@ def send(
         \b
         # Using options
         $ freemobile-sms send "Hello!" --user 12345678 --password myApiKey
+
+        \b
+        # Using POST (no URL-encoding needed)
+        $ freemobile-sms send "Hello!" --method POST -u 12345678 -p myApiKey
     """
     settings = FreeMobileSettings(
         user=user or "",
@@ -68,7 +78,7 @@ def send(
 
     with FreeMobileClient(settings=settings) as client:
         try:
-            result = client.send(message)
+            result = client.send(message, method=method)
         except FreeMobileClientError as exc:
             typer.echo(f"Error: {exc}", err=True)
             raise typer.Exit(code=1) from exc

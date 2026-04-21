@@ -16,13 +16,13 @@ class TestPackageImports:
     def test_all_exports(self) -> None:
         """__all__ should list all public names."""
         expected = {
-            "AccountBlockedError",
+            "AccessDeniedError",
             "AsyncFreeMobileClient",
-            "AuthenticationError",
             "FreeMobileClient",
             "FreeMobileClientError",
             "FreeMobileSettings",
             "FreeMobileStatus",
+            "RateLimitError",
             "ServerError",
             "SMSResult",
         }
@@ -30,8 +30,8 @@ class TestPackageImports:
 
     def test_exception_hierarchy(self) -> None:
         """Custom exceptions should inherit from FreeMobileClientError."""
-        assert issubclass(freemobile_sms.AuthenticationError, freemobile_sms.FreeMobileClientError)
-        assert issubclass(freemobile_sms.AccountBlockedError, freemobile_sms.FreeMobileClientError)
+        assert issubclass(freemobile_sms.RateLimitError, freemobile_sms.FreeMobileClientError)
+        assert issubclass(freemobile_sms.AccessDeniedError, freemobile_sms.FreeMobileClientError)
         assert issubclass(freemobile_sms.ServerError, freemobile_sms.FreeMobileClientError)
         assert issubclass(freemobile_sms.FreeMobileClientError, Exception)
 

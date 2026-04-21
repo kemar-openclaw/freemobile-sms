@@ -1,24 +1,24 @@
 """Convenience re-exports for the freemobile_sms package."""
 
 from .client import (
-    AccountBlockedError,
+    AccessDeniedError,
     AsyncFreeMobileClient,
-    AuthenticationError,
     FreeMobileClient,
     FreeMobileClientError,
+    RateLimitError,
     ServerError,
 )
 from .models import FreeMobileStatus, SMSResult
 from .settings import FreeMobileSettings
 
 __all__ = [
-    "AccountBlockedError",
+    "AccessDeniedError",
     "AsyncFreeMobileClient",
-    "AuthenticationError",
     "FreeMobileClient",
     "FreeMobileClientError",
     "FreeMobileSettings",
     "FreeMobileStatus",
+    "RateLimitError",
     "SMSResult",
     "ServerError",
 ]

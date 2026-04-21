@@ -31,6 +31,24 @@ class TestCLISend:
         assert result.exit_code == 0, f"Unexpected output: {result.output}"
         assert "SMS sent successfully" in result.output
 
+    def test_send_post_method(self) -> None:
+        """CLI should support --method POST."""
+        with patch("freemobile_sms.cli.FreeMobileClient") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.send.return_value = SMSResult(
+                success=True, status_code=200, message="SMS sent successfully"
+            )
+            mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+            mock_instance.__exit__ = MagicMock(return_value=False)
+            mock_client.return_value = mock_instance
+
+            result = runner.invoke(
+                app, ["send", "Hello!", "--method", "POST", "-u", "1234", "-p", "pass"]
+            )
+
+        assert result.exit_code == 0
+        mock_instance.send.assert_called_once_with("Hello!", method="POST")
+
     def test_send_with_env_vars(self) -> None:
         """CLI should read credentials from env vars."""
         with patch("freemobile_sms.cli.FreeMobileClient") as mock_client:
@@ -46,29 +64,13 @@ class TestCLISend:
 
         assert result.exit_code == 0
 
-    def test_send_auth_error(self) -> None:
-        """CLI should exit 1 on AuthenticationError."""
-        from freemobile_sms.client import AuthenticationError
+    def test_send_rate_limit_error(self) -> None:
+        """CLI should exit 1 on RateLimitError."""
+        from freemobile_sms.client import RateLimitError
 
         with patch("freemobile_sms.cli.FreeMobileClient") as mock_client:
             mock_instance = MagicMock()
-            mock_instance.send.side_effect = AuthenticationError("Invalid credentials")
-            mock_instance.__enter__ = MagicMock(return_value=mock_instance)
-            mock_instance.__exit__ = MagicMock(return_value=False)
-            mock_client.return_value = mock_instance
-
-            result = runner.invoke(app, ["send", "Hello!", "--user", "bad", "--password", "bad"])
-
-        assert result.exit_code == 1
-        assert "Invalid credentials" in result.output
-
-    def test_send_account_blocked_error(self) -> None:
-        """CLI should exit 1 on AccountBlockedError."""
-        from freemobile_sms.client import AccountBlockedError
-
-        with patch("freemobile_sms.cli.FreeMobileClient") as mock_client:
-            mock_instance = MagicMock()
-            mock_instance.send.side_effect = AccountBlockedError("Account blocked")
+            mock_instance.send.side_effect = RateLimitError("Too many SMS")
             mock_instance.__enter__ = MagicMock(return_value=mock_instance)
             mock_instance.__exit__ = MagicMock(return_value=False)
             mock_client.return_value = mock_instance
@@ -76,7 +78,23 @@ class TestCLISend:
             result = runner.invoke(app, ["send", "Hello!", "--user", "1234", "--password", "pass"])
 
         assert result.exit_code == 1
-        assert "Account blocked" in result.output
+        assert "Too many SMS" in result.output
+
+    def test_send_access_denied_error(self) -> None:
+        """CLI should exit 1 on AccessDeniedError."""
+        from freemobile_sms.client import AccessDeniedError
+
+        with patch("freemobile_sms.cli.FreeMobileClient") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.send.side_effect = AccessDeniedError("Service not activated")
+            mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+            mock_instance.__exit__ = MagicMock(return_value=False)
+            mock_client.return_value = mock_instance
+
+            result = runner.invoke(app, ["send", "Hello!", "--user", "1234", "--password", "pass"])
+
+        assert result.exit_code == 1
+        assert "Service not activated" in result.output
 
     def test_send_server_error(self) -> None:
         """CLI should exit 1 on ServerError."""

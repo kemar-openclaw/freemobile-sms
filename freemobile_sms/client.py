@@ -14,24 +14,24 @@ class FreeMobileClientError(Exception):
     """Base exception for Free Mobile client errors."""
 
 
-class AuthenticationError(FreeMobileClientError):
-    """Raised when credentials are invalid (HTTP 402)."""
+class RateLimitError(FreeMobileClientError):
+    """Raised when too many SMS have been sent in too short a time (HTTP 402)."""
 
 
-class AccountBlockedError(FreeMobileClientError):
-    """Raised when the account is blocked from SMS notifications (HTTP 403)."""
+class AccessDeniedError(FreeMobileClientError):
+    """Raised when the service is not activated or credentials are wrong (HTTP 403)."""
 
 
 class ServerError(FreeMobileClientError):
     """Raised when the Free Mobile server returns an internal error (HTTP 500)."""
 
 
-# Map status codes to readable messages.
+# Map status codes to readable messages — matches the official Free Mobile docs.
 _STATUS_MESSAGES: dict[int, str] = {
     FreeMobileStatus.OK: "SMS sent successfully",
-    FreeMobileStatus.MISSING_PARAMETER: "Missing parameter — check user and password",
-    FreeMobileStatus.INVALID_CREDENTIALS: "Invalid credentials — check user/password",
-    FreeMobileStatus.ACCOUNT_BLOCKED: "Account blocked — SMS notifications may be disabled",
+    FreeMobileStatus.MISSING_PARAMETER: "Missing parameter — check user, pass, and msg",
+    FreeMobileStatus.RATE_LIMITED: "Too many SMS sent in too short a time — slow down",
+    FreeMobileStatus.ACCESS_DENIED: "Service not activated or incorrect login/key",
     FreeMobileStatus.SERVER_ERROR: "Free Mobile server error — try again later",
 }
 
@@ -80,18 +80,20 @@ class FreeMobileClient:
             "msg": message,
         }
 
-    def send(self, message: str) -> SMSResult:
+    def send(self, message: str, *, method: str = "GET") -> SMSResult:
         """Send an SMS notification.
 
         Args:
             message: The text message to send (max 480 characters).
+            method: HTTP method — "GET" (default) or "POST".
+                With POST the message doesn't need URL-encoding (per Free Mobile docs).
 
         Returns:
             SMSResult with success status, status code, and description.
 
         Raises:
-            AuthenticationError: When credentials are invalid.
-            AccountBlockedError: When the account is blocked from notifications.
+            RateLimitError: When too many SMS have been sent in too short a time.
+            AccessDeniedError: When the service is not activated or credentials are wrong.
             ServerError: When the Free Mobile server has an internal error.
 
         Examples:
@@ -106,20 +108,26 @@ class FreeMobileClient:
                 "environment variables, or pass a FreeMobileSettings instance."
             )
 
-        response = self._client.get(
-            self.settings.api_url,
-            params=self._build_params(message),
-        )
+        if method.upper() == "POST":
+            response = self._client.post(
+                self.settings.api_url,
+                data={"user": self.settings.user, "pass": self.settings.password, "msg": message},
+            )
+        else:
+            response = self._client.get(
+                self.settings.api_url,
+                params=self._build_params(message),
+            )
         return self._handle_response(response.status_code)
 
     def _handle_response(self, status_code: int) -> SMSResult:
         """Convert an HTTP status code into an SMSResult, raising on errors."""
         msg = _STATUS_MESSAGES.get(status_code, f"Unknown status code: {status_code}")
 
-        if status_code == FreeMobileStatus.INVALID_CREDENTIALS:
-            raise AuthenticationError(msg)
-        if status_code == FreeMobileStatus.ACCOUNT_BLOCKED:
-            raise AccountBlockedError(msg)
+        if status_code == FreeMobileStatus.RATE_LIMITED:
+            raise RateLimitError(msg)
+        if status_code == FreeMobileStatus.ACCESS_DENIED:
+            raise AccessDeniedError(msg)
         if status_code == FreeMobileStatus.SERVER_ERROR:
             raise ServerError(msg)
 
@@ -180,18 +188,19 @@ class AsyncFreeMobileClient:
             "msg": message,
         }
 
-    async def send(self, message: str) -> SMSResult:
+    async def send(self, message: str, *, method: str = "GET") -> SMSResult:
         """Send an SMS notification asynchronously.
 
         Args:
             message: The text message to send.
+            method: HTTP method — "GET" (default) or "POST".
 
         Returns:
             SMSResult with success status, status code, and description.
 
         Raises:
-            AuthenticationError: When credentials are invalid.
-            AccountBlockedError: When the account is blocked from notifications.
+            RateLimitError: When too many SMS have been sent in too short a time.
+            AccessDeniedError: When the service is not activated or credentials are wrong.
             ServerError: When the Free Mobile server has an internal error.
         """
         if not self.settings.user or not self.settings.password:
@@ -200,20 +209,30 @@ class AsyncFreeMobileClient:
                 "environment variables, or pass a FreeMobileSettings instance."
             )
 
-        response = await self._client.get(
-            self.settings.api_url,
-            params=self._build_params(message),
-        )
+        if method.upper() == "POST":
+            response = await self._client.post(
+                self.settings.api_url,
+                data={
+                    "user": self.settings.user,
+                    "pass": self.settings.password,
+                    "msg": message,
+                },
+            )
+        else:
+            response = await self._client.get(
+                self.settings.api_url,
+                params=self._build_params(message),
+            )
         return self._handle_response(response.status_code)
 
     def _handle_response(self, status_code: int) -> SMSResult:
         """Convert an HTTP status code into an SMSResult, raising on errors."""
         msg = _STATUS_MESSAGES.get(status_code, f"Unknown status code: {status_code}")
 
-        if status_code == FreeMobileStatus.INVALID_CREDENTIALS:
-            raise AuthenticationError(msg)
-        if status_code == FreeMobileStatus.ACCOUNT_BLOCKED:
-            raise AccountBlockedError(msg)
+        if status_code == FreeMobileStatus.RATE_LIMITED:
+            raise RateLimitError(msg)
+        if status_code == FreeMobileStatus.ACCESS_DENIED:
+            raise AccessDeniedError(msg)
         if status_code == FreeMobileStatus.SERVER_ERROR:
             raise ServerError(msg)
 
