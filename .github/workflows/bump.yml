@@ -1,0 +1,53 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump type"
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Bump version
+        id: bump
+        run: |
+          OLD_VERSION=$(uv run python -c "import freemobile_sms; print(freemobile_sms.__version__)")
+          uv run bump-my-version bump ${{ inputs.bump_type }}
+          NEW_VERSION=$(uv run python -c "import freemobile_sms; print(freemobile_sms.__version__)")
+          echo "old_version=$OLD_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Push tag and commit
+        run: |
+          git push
+          git push --tags
+
+      - name: Summary
+        run: |
+          echo "### Version bumped :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.bump.outputs.old_version }} → ${{ steps.bump.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
